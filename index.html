@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Finance Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* All your existing CSS remains exactly the same */
+:root{
+  --bg:#0c0c0e;--s:rgba(255,255,255,0.05);--s2:rgba(255,255,255,0.08);
+  --br:rgba(255,255,255,0.1);--br2:rgba(255,255,255,0.18);
+  --tx:#f0f0f2;--t2:rgba(240,240,242,0.6);--t3:rgba(240,240,242,0.35);
+  --g:#34c759;--gbg:rgba(52,199,89,0.1);--gb:rgba(52,199,89,0.22);
+  --r:#ff453a;--rbg:rgba(255,69,58,0.1);--rb:rgba(255,69,58,0.2);
+  --bl:#0a84ff;--bbg:rgba(10,132,255,0.1);--bb:rgba(10,132,255,0.2);
+  --am:#ffd60a;
+  --sans:-apple-system,BlinkMacSystemFont,'SF Pro Display','Helvetica Neue',sans-serif;
+  --mono:'SF Mono','Menlo','Monaco',monospace;
+  --rad:10px;--rads:7px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font-family:var(--sans);font-size:13px;-webkit-font-smoothing:antialiased;min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 70% 50% at 10% 0%,rgba(255,255,255,0.02),transparent 55%);pointer-events:none}
+.shell{display:flex;height:100vh;overflow:hidden}
+.sb{width:200px;flex-shrink:0;background:rgba(255,255,255,0.025);border-right:1px solid var(--br);display:flex;flex-direction:column;padding:0}
+.sb-top{padding:20px 16px 14px;border-bottom:1px solid var(--br)}
+.sb-title{font-size:14px;font-weight:700;letter-spacing:-0.3px}
+.sb-sub{font-size:10px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--t3);margin-top:2px}
+.sb-yr{display:flex;flex-direction:column;gap:1px;padding:12px 8px}
+.yr-btn{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--rads);cursor:pointer;color:var(--t2);font-size:12px;font-weight:500;transition:all .13s;border:1px solid transparent;background:none;font-family:var(--sans);width:100%;text-align:left}
+.yr-btn:hover{background:var(--s2);color:var(--tx)}
+.yr-btn.active{background:var(--s2);color:var(--tx);font-weight:700;border-color:var(--br)}
+.yr-ico{font-size:14px;width:18px;text-align:center}
+.sb-sep{height:1px;background:var(--br);margin:4px 12px}
+.sb-nav{display:flex;flex-direction:column;gap:1px;padding:8px 8px}
+.nav-btn{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--rads);cursor:pointer;color:var(--t2);font-size:12px;font-weight:500;transition:all .13s;border:1px solid transparent;background:none;font-family:var(--sans);width:100%;text-align:left}
+.nav-btn:hover{background:var(--s2);color:var(--tx)}
+.nav-btn.active{background:var(--s2);color:var(--tx);font-weight:700;border-color:var(--br)}
+.sb-foot{margin-top:auto;padding:12px;border-top:1px solid var(--br)}
+.fx-line{display:flex;justify-content:space-between;font-size:11px;color:var(--t2);padding:2px 0}
+.fx-v{font-family:var(--mono);color:var(--tx);font-weight:600}
+.live-dot{width:5px;height:5px;border-radius:50%;background:var(--g);display:inline-block;margin-right:4px;animation:blink 2s ease-in-out infinite;vertical-align:middle}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.main{flex:1;overflow-y:auto;padding:24px 24px 60px}
+.page{display:none}.page.active{display:block}
+.ph{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px}
+.ph-l .title{font-size:20px;font-weight:700;letter-spacing:-0.4px}
+.ph-l .subtitle{font-size:10px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:var(--t3);margin-top:3px}
+.ph-r{text-align:right}
+.ph-nw-lbl{font-size:10px;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--t3);margin-bottom:2px}
+.ph-nw{font-size:22px;font-weight:700;letter-spacing:-0.4px}
+.ph-nw-sub{font-size:11px;color:var(--t3);margin-top:1px}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.card{background:var(--s);border:1px solid var(--br);border-radius:var(--rad);padding:14px 16px;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:var(--rad) var(--rad) 0 0}
+.card.g::before{background:var(--g)}.card.r::before{background:var(--r)}.card.bl::before{background:var(--bl)}.card.am::before{background:var(--am)}
+.card-lbl{font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--t3);margin-bottom:5px}
+.card-val{font-size:19px;font-weight:700;letter-spacing:-0.4px;line-height:1}
+.card.g .card-val{color:var(--g)}.card.r .card-val{color:var(--r)}.card.bl .card-val{color:var(--bl)}.card.am .card-val{color:var(--am)}
+.card-sub{font-size:10px;color:var(--t3);margin-top:4px}
+.box{background:var(--s);border:1px solid var(--br);border-radius:var(--rad);overflow:hidden;margin-bottom:14px}
+.box-hd{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--br);background:rgba(255,255,255,0.015)}
+.box-title{font-size:13px;font-weight:700}
+.badge{font-size:9px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;padding:2px 7px;border-radius:4px}
+.bg{background:var(--gbg);color:var(--g);border:1px solid var(--gb)}
+.br_{background:var(--rbg);color:var(--r);border:1px solid var(--rb)}
+.bb{background:var(--bbg);color:var(--bl);border:1px solid var(--bb)}
+.bn{background:var(--s2);color:var(--t2);border:1px solid var(--br)}
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--t3);padding:7px 16px;text-align:right;border-bottom:1px solid var(--br)}
+.tbl th.l{text-align:left}
+.tbl td{padding:7px 16px;text-align:right;font-family:var(--mono);font-size:12px;color:var(--t2);border-bottom:1px solid rgba(255,255,255,0.04)}
+.tbl td.l{text-align:left;font-family:var(--sans);font-size:12px;color:var(--t2);font-weight:500}
+.tbl td.ind{padding-left:28px;font-size:11px;color:var(--t3)}
+.tbl tr:hover td{background:rgba(255,255,255,0.02)}
+.tbl tr.grp td{background:rgba(255,255,255,0.015);font-family:var(--sans);font-size:9px;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--t3);padding:8px 16px 5px;border-bottom:none}
+.tbl tr.sub td{background:var(--s2);font-weight:700;color:var(--tx);border-top:1px solid var(--br);border-bottom:1px solid var(--br)}
+.tbl tr.sub td.l{font-family:var(--sans)}
+.tbl tr.tot td{background:rgba(255,255,255,0.07);font-weight:700;font-size:13px;color:var(--tx);border-top:2px solid var(--br2)}
+.tbl tr.tot td.l{font-family:var(--sans)}
+.tbl tr.pos td:not(.l){color:var(--g)}
+.tbl tr.neg td:not(.l){color:var(--r)}
+.tbl tr.hl td{color:var(--bl)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px}
+.g21{display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:14px}
+.ch-wrap{position:relative}.ch180{height:180px}.ch200{height:200px}.ch160{height:160px}
+.ch-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:12px;padding:14px 16px 0}
+.ch-title{font-size:12px;font-weight:700}
+.ch-sub{font-size:10px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--t3)}
+.ch-body{padding:0 16px 16px}
+.mtabs{display:flex;gap:4px;overflow-x:auto;padding-bottom:2px;margin-bottom:16px;scrollbar-width:none}
+.mtabs::-webkit-scrollbar{display:none}
+.mtab{flex-shrink:0;padding:5px 12px;border-radius:16px;border:1px solid var(--br);background:none;color:var(--t3);font-family:var(--sans);font-size:11px;font-weight:500;cursor:pointer;transition:all .12s}
+.mtab:hover{background:var(--s2);color:var(--t2)}
+.mtab.ok{border-color:var(--gb);color:var(--g)}
+.mtab.active{background:var(--s2);border-color:var(--br2);color:var(--tx);font-weight:700}
+.mtab.ok.active{background:var(--gbg);border-color:var(--g)}
+.form3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:start}
+.fcol-hd{padding:9px 12px;border-radius:var(--rads) var(--rads) 0 0;font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase}
+.fcol-hd.g{background:var(--gbg);color:var(--g);border:1px solid var(--gb);border-bottom:none}
+.fcol-hd.r{background:var(--rbg);color:var(--r);border:1px solid var(--rb);border-bottom:none}
+.fcol-hd.bl{background:var(--bbg);color:var(--bl);border:1px solid var(--bb);border-bottom:none}
+.fcol-bd{background:var(--s);border-radius:0 0 var(--rads) var(--rads);padding:12px}
+.fcol-bd.g{border:1px solid var(--gb);border-top:none}
+.fcol-bd.r{border:1px solid var(--rb);border-top:none}
+.fcol-bd.bl{border:1px solid var(--bb);border-top:none}
+.frow{margin-bottom:8px}
+.flabel{font-size:11px;color:var(--t2);font-weight:500;display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+.tag{font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px}
+.tg{background:var(--gbg);color:var(--g)}.tr{background:var(--rbg);color:var(--r)}.tb{background:var(--bbg);color:var(--bl)}
+.fi{background:rgba(255,255,255,0.05);border:1px solid var(--br);border-radius:5px;color:var(--tx);font-family:var(--mono);font-size:12px;padding:7px 10px;outline:none;width:100%;text-align:right;transition:border-color .12s}
+.fi:focus{border-color:var(--br2);background:var(--s2)}
+.fi::placeholder{color:var(--t3)}
+.fi.fb{border-color:var(--bb);background:var(--bbg);color:var(--bl)}
+.fi.fn{text-align:left;font-family:var(--sans);font-size:12px}
+.sep-lbl{font-size:9px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--t3);border-top:1px solid var(--br);padding-top:9px;margin:10px 0 8px}
+.ftot{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border-radius:5px;margin-top:10px;font-size:11px}
+.ftot.g{background:var(--gbg);border:1px solid var(--gb)}
+.ftot.r{background:var(--rbg);border:1px solid var(--rb)}
+.ftot.bl{background:var(--bbg);border:1px solid var(--bb)}
+.ftot-lbl{font-weight:700;letter-spacing:0.04em;text-transform:uppercase}
+.ftot-lbl.g{color:var(--g)}.ftot-lbl.r{color:var(--r)}.ftot-lbl.bl{color:var(--bl)}
+.ftot-val{font-size:14px;font-weight:700;letter-spacing:-0.3px}
+.ftot-val.g{color:var(--g)}.ftot-val.r{color:var(--r)}.ftot-val.bl{color:var(--bl)}
+.cf-box{display:flex;justify-content:space-between;align-items:center;background:var(--s);border:1px solid var(--br);border-radius:var(--rads);padding:11px 14px;margin-top:9px}
+.cf-val{font-size:19px;font-weight:700;letter-spacing:-0.4px}
+.pl-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:11px}
+.pl-lbl{color:var(--t2)}.pl-val{font-family:var(--mono);font-weight:600}
+.actions{display:flex;gap:8px;margin-top:12px;align-items:center}
+.btn{font-family:var(--sans);font-size:11px;font-weight:600;padding:7px 16px;border-radius:16px;cursor:pointer;transition:all .12s;border:none}
+.btn-p{background:rgba(255,255,255,0.88);color:#0a0a0a}
+.btn-p:hover{background:#fff}
+.btn-g{background:none;color:var(--t2);border:1px solid var(--br)}
+.btn-g:hover{background:var(--s2);color:var(--tx)}
+.btn-d{background:none;color:var(--r);border:1px solid var(--rb)}
+.btn-d:hover{background:var(--rbg)}
+.toast{font-size:11px;color:var(--g);font-weight:600;opacity:0;transition:opacity .3s;margin-left:4px}
+.toast.on{opacity:1}
+.a-row{display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid rgba(255,255,255,0.05);gap:9px}
+.a-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+.a-name{flex:1;font-size:12px;color:var(--t2)}
+.a-start{font-size:11px;color:var(--t3);min-width:80px;text-align:right;font-family:var(--mono)}
+.a-added{font-size:11px;min-width:70px;text-align:right;font-family:var(--mono)}
+.a-cur{font-size:12px;font-weight:700;color:var(--tx);min-width:90px;text-align:right;font-family:var(--mono)}
+.a-pct{font-size:10px;color:var(--t3);min-width:38px;text-align:right}
+.a-fc{font-size:11px;color:var(--bl);min-width:80px;text-align:right;font-family:var(--mono)}
+.yr-row{display:flex;align-items:center;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.05);cursor:pointer;transition:background .12s}
+.yr-row:hover{background:var(--s2)}
+.yr-row.active-yr{background:var(--s2);border-left:2px solid var(--bl)}
+.yr-tag{width:40px;font-size:12px;font-weight:700;color:var(--t2);flex-shrink:0}
+.yr-bar-w{flex:1;height:4px;background:rgba(255,255,255,0.07);border-radius:2px;overflow:hidden;margin:0 10px}
+.yr-bar{height:100%;border-radius:2px;background:var(--bl);transition:width .4s}
+.yr-nw{font-size:12px;font-weight:700;color:var(--tx);min-width:80px;text-align:right;font-family:var(--mono)}
+.yr-delta{font-size:11px;min-width:70px;text-align:right;font-family:var(--mono)}
+.lg-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.05)}
+.lg-row:last-child{border-bottom:none}
+.lg-dot{width:7px;height:7px;border-radius:2px;flex-shrink:0}
+.lg-name{flex:1;font-size:11px;color:var(--t2)}
+.lg-val{font-family:var(--mono);font-size:11px;color:var(--tx);font-weight:600;min-width:80px;text-align:right}
+.lg-pct{font-size:10px;color:var(--t3);min-width:34px;text-align:right}
+.ae-row{margin-bottom:7px}
+.ae-lbl{font-size:10px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;color:var(--t3);margin-bottom:3px;display:flex;justify-content:space-between}
+.ae-tag{font-size:9px;padding:1px 5px;border-radius:3px;background:var(--gbg);color:var(--g)}
+.sync-indicator {
+  position: fixed;
+  bottom: 70px;
+  right: 20px;
+  background: rgba(52, 199, 89, 0.15);
+  border: 1px solid rgba(52, 199, 89, 0.3);
+  color: #34c759;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 20px;
+  backdrop-filter: blur(10px);
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+.sync-indicator.show {
+  opacity: 1;
+}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px}
+.tab-bar{display:none}
+@media(max-width:700px){
+.shell{flex-direction:column}.sb{display:none}
+.main{padding:14px 13px;padding-bottom:calc(64px + env(safe-area-inset-bottom))}
+.cards{grid-template-columns:1fr 1fr}.g2,.g21,.g3,.form3{grid-template-columns:1fr}
+.ph{flex-direction:column;gap:8px}.ph-r{text-align:left}
+.tab-bar{display:flex;position:fixed;bottom:0;left:0;right:0;height:calc(56px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom);background:rgba(12,12,14,0.96);backdrop-filter:blur(24px);border-top:1px solid var(--br);z-index:100;justify-content:space-around;align-items:flex-start;padding-top:8px}
+.ti{display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;color:var(--t3);min-width:55px}
+.ti.active{color:var(--tx)}.ti-ico{font-size:18px}.ti-lbl{font-size:10px;font-weight:600}
+.sync-indicator { bottom: 80px; }
+}
+@media(max-width:1000px){.cards{grid-template-columns:repeat(2,1fr)}.g21{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="tab-bar">
+  <div class="ti active" onclick="nav('overview',this)"><span class="ti-ico">▤</span><span class="ti-lbl">Overview</span></div>
+  <div class="ti" onclick="nav('monthly',this)"><span class="ti-ico">✦</span><span class="ti-lbl">Monthly</span></div>
+  <div class="ti" onclick="nav('assets',this)"><span class="ti-ico">◆</span><span class="ti-lbl">Assets</span></div>
+</div>
+
+<div class="sync-indicator" id="sync-indicator">☁️ Synced to Cloud</div>
+
+<div class="shell">
+<div class="sb">
+  <div class="sb-top">
+    <div class="sb-title">Finance Tracker</div>
+    <div class="sb-sub">Personal · Multi-year · ☁️</div>
+  </div>
+  <div style="padding:10px 8px 4px;display:flex;justify-content:space-between;align-items:center">
+    <span style="font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--t3)">Year</span>
+    <button onclick="addYear()" style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:5px;background:var(--gbg);color:var(--g);border:1px solid var(--gb);cursor:pointer;font-family:var(--sans);transition:all .12s" title="Add a new year">+ Add</button>
+  </div>
+  <div class="sb-yr" id="sb-years"></div>
+  <div class="sb-sep"></div>
+  <div style="padding:10px 8px 4px;font-size:10px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--t3)">View</div>
+  <div class="sb-nav">
+    <button class="nav-btn active" onclick="nav('overview',this)"><span class="yr-ico">▤</span> Overview</button>
+    <button class="nav-btn" onclick="nav('monthly',this)"><span class="yr-ico">✦</span> Monthly Entry</button>
+    <button class="nav-btn" onclick="nav('assets',this)"><span class="yr-ico">◆</span> Assets</button>
+  </div>
+  <div class="sb-foot">
+    <div style="font-size:10px;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--t3);margin-bottom:6px"><span class="live-dot"></span>Live FX</div>
+    <div class="fx-line"><span>USD/JPY</span><span class="fx-v" id="fx-usdjpy">—</span></div>
+    <div class="fx-line"><span>VND/JPY</span><span class="fx-v" id="fx-vndjpy">—</span></div>
+    <div class="fx-line" style="margin-top:4px"><span id="fx-ts" style="font-size:10px;color:var(--t3)">Fetching…</span></div>
+  </div>
+</div>
+
+<div class="main">
+
+<!-- OVERVIEW PAGE -->
+<div class="page active" id="page-overview">
+  <div class="ph">
+    <div class="ph-l"><div class="title">Overview <span id="ov-yr" style="font-weight:300;color:var(--t2)">2026</span></div><div class="subtitle">Income · Expenses · Cash Flow</div></div>
+    <div class="ph-r"><div class="ph-nw-lbl">Net Worth</div><div class="ph-nw" id="ov-nw">¥—</div><div class="ph-nw-sub" id="ov-nw-sub">≈ $—</div></div>
+  </div>
+  <div class="cards">
+    <div class="card g"><div class="card-lbl">Total Income</div><div class="card-val" id="ov-inc">¥—</div><div class="card-sub">Gross annual revenue</div></div>
+    <div class="card r"><div class="card-lbl">Total Expenses</div><div class="card-val" id="ov-exp">¥—</div><div class="card-sub">Deductions + all spending</div></div>
+    <div class="card bl"><div class="card-lbl">Net Cash Flow</div><div class="card-val" id="ov-cf">¥—</div><div class="card-sub">Income minus expenses</div></div>
+    <div class="card am"><div class="card-lbl">Savings Rate</div><div class="card-val" id="ov-sr">—%</div><div class="card-sub">Cash flow ÷ gross income</div></div>
+  </div>
+  <div class="g2">
+    <div class="box">
+      <div class="box-hd"><div class="box-title">Income Breakdown</div><span class="badge bg">Revenue</span></div>
+      <table class="tbl"><thead><tr><th class="l">Source</th><th>Monthly Avg</th><th>Annual Total</th></tr></thead><tbody id="inc-tbl"></tbody></table>
+    </div>
+    <div class="box">
+      <div class="box-hd"><div class="box-title">Expense Breakdown</div><span class="badge br_">Spending</span></div>
+      <table class="tbl"><thead><tr><th class="l">Category</th><th>Monthly Avg</th><th>Annual Total</th></tr></thead><tbody id="exp-tbl"></tbody></table>
+    </div>
+  </div>
+  <div class="box" style="margin-bottom:14px">
+    <div class="ch-head"><div class="ch-title">Monthly Cash Flow</div><div class="ch-sub">Income vs Expenses · Net</div></div>
+    <div class="ch-body"><div class="ch-wrap ch200"><canvas id="ch-overview"></canvas></div></div>
+  </div>
+  <div class="box">
+    <div class="box-hd"><div class="box-title">Year-on-Year Progress</div><span class="badge bn">All Years</span></div>
+    <div id="yr-history"></div>
+  </div>
+</div>
+
+<!-- MONTHLY PAGE -->
+<div class="page" id="page-monthly">
+  <div class="ph">
+    <div class="ph-l"><div class="title">Monthly Entry <span id="mo-yr-title" style="font-weight:300;color:var(--t2)">2026</span></div><div class="subtitle">Record income, expenses and investments</div></div>
+    <div style="display:flex;align-items:center;gap:8px"><span class="toast" id="save-toast">✓ Saved</span><span id="mo-badge"></span></div>
+  </div>
+  <div class="mtabs" id="mtabs"></div>
+  <div class="form3">
+    <div>
+      <div class="fcol-hd g">💴 Income</div>
+      <div class="fcol-bd g">
+        <div class="frow"><div class="flabel">Base Salary</div><input class="fi" id="f-base" placeholder="303,457"></div>
+        <div class="frow"><div class="flabel">Lunch Allowance</div><input class="fi" id="f-lunch" placeholder="10,000"></div>
+        <div class="frow"><div class="flabel">Fixed Overtime</div><input class="fi" id="f-fixedOT" placeholder="46,543"></div>
+        <div class="frow"><div class="flabel">Extra Overtime</div><input class="fi" id="f-extraOT"></div>
+        <div class="frow"><div class="flabel">Commuting</div><input class="fi" id="f-commute" placeholder="8,680"></div>
+        <div class="frow"><div class="flabel">Bonus</div><input class="fi" id="f-bonus"></div>
+        <div class="frow"><div class="flabel">Extra Income</div><input class="fi" id="f-extraIncome"></div>
+        <div class="frow"><div class="flabel">Cash In</div><input class="fi" id="f-cashIn"></div>
+        <div class="sep-lbl">Deductions (subtracted)</div>
+        <div class="frow"><div class="flabel">Health / Medical <span class="tag tr">−</span></div><input class="fi" id="f-health" placeholder="67,995"></div>
+        <div class="frow"><div class="flabel">Cafeteria <span class="tag tr">−</span></div><input class="fi" id="f-cafeteria" placeholder="10,000"></div>
+        <div class="frow"><div class="flabel">iDeCo Company <span class="tag tr">−</span></div><input class="fi" id="f-idecoDeduct"></div>
+        <div class="ftot g"><span class="ftot-lbl g">Gross Income</span><span class="ftot-val g" id="c-gross">¥0</span></div>
+        <div class="ftot g" style="margin-top:5px;background:rgba(255,255,255,0.03);border-color:var(--br)"><span class="ftot-lbl" style="color:var(--t2)">Net Income</span><span style="font-size:14px;font-weight:700;color:var(--tx)" id="c-net">¥0</span></div>
+      </div>
+    </div>
+    <div>
+      <div class="fcol-hd r">💳 Expenses</div>
+      <div class="fcol-bd r">
+        <div class="frow"><div class="flabel">Bank / Living</div><input class="fi" id="f-cardBank" placeholder="120,000"></div>
+        <div class="frow"><div class="flabel">Rakuten Visa</div><input class="fi" id="f-cardRakutenVisa"></div>
+        <div class="frow"><div class="flabel">Rakuten Card</div><input class="fi" id="f-cardRakutenCard"></div>
+        <div class="frow"><div class="flabel">Olive</div><input class="fi" id="f-cardOlive"></div>
+        <div class="frow"><div class="flabel">PayPay</div><input class="fi" id="f-cardPaypay"></div>
+        <div class="frow"><div class="flabel">Amazon</div><input class="fi" id="f-cardAmazon"></div>
+        <div class="frow"><div class="flabel">Transfer</div><input class="fi" id="f-cardTransfer"></div>
+        <div class="frow"><div class="flabel">Cash Out</div><input class="fi" id="f-cardCashOut"></div>
+        <div class="frow"><div class="flabel">Adjustment</div><input class="fi" id="f-cardAdjust"></div>
+        <div class="frow"><div class="flabel">Bitcoin</div><input class="fi" id="f-cardBitcoin"></div>
+        <div class="sep-lbl">Bank Balances (end of month)</div>
+        <div class="frow"><div class="flabel">SMBC <span class="tag tb">manual</span></div><input class="fi fb" id="f-smbc"></div>
+        <div class="frow"><div class="flabel">Rakuten Bank <span class="tag tb">manual</span></div><input class="fi fb" id="f-rakuten"></div>
+        <div class="ftot r"><span class="ftot-lbl r">Total Expenses</span><span class="ftot-val r" id="c-exp">¥0</span></div>
+        <div class="cf-box"><div><div style="font-size:11px;color:var(--t2);font-weight:600">Net Cash Flow</div><div style="font-size:10px;color:var(--t3);margin-top:1px">Net income − expenses</div></div><div class="cf-val" id="c-cf">¥0</div></div>
+      </div>
+    </div>
+    <div>
+      <div class="fcol-hd bl">📈 Investments</div>
+      <div class="fcol-bd bl">
+        <div class="frow"><div class="flabel">NISA (Tsumitate)</div><input class="fi" id="f-nisa" placeholder="100,000"></div>
+        <div class="frow"><div class="flabel">Crypto</div><input class="fi" id="f-crypto" placeholder="10,000"></div>
+        <div class="frow"><div class="flabel">iDeCo Extra</div><input class="fi" id="f-ideco" placeholder="7,000"></div>
+        <div class="frow"><div class="flabel">Education</div><input class="fi" id="f-education" placeholder="10,000"></div>
+        <div class="frow"><div class="flabel">Business</div><input class="fi" id="f-business"></div>
+        <div class="ftot bl"><span class="ftot-lbl bl">Total Invested</span><span class="ftot-val bl" id="c-inv">¥0</span></div>
+        <div class="sep-lbl">Notes</div>
+        <div class="frow"><input class="fi fn" id="f-notes" placeholder="Note for this month…"></div>
+        <div style="margin-top:12px;background:rgba(255,255,255,0.02);border:1px solid var(--br);border-radius:var(--rads);overflow:hidden">
+          <div style="padding:8px 12px;border-bottom:1px solid var(--br);font-size:9px;font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:var(--t3)">Month Summary</div>
+          <div style="padding:9px 12px" id="mo-pl"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="actions">
+    <button class="btn btn-p" onclick="saveMonth()">💾 Save Month</button>
+    <button class="btn btn-g" onclick="clearForm()">Clear</button>
+    <button class="btn btn-d" onclick="resetMonth()">↺ Reset</button>
+  </div>
+</div>
+
+<!-- ASSETS PAGE -->
+<div class="page" id="page-assets">
+  <div class="ph">
+    <div class="ph-l"><div class="title">Assets <span id="as-yr-title" style="font-weight:300;color:var(--t2)">2026</span></div><div class="subtitle">Starting balance · Current · Year-end forecast</div></div>
+    <div class="ph-r"><div class="ph-nw-lbl">Current Net Worth</div><div class="ph-nw" id="as-nw">¥—</div><div class="ph-nw-sub" id="as-nw-sub">≈ $—</div></div>
+  </div>
+  <div class="cards">
+    <div class="card bl" style="--am:var(--t2)"><div class="card-lbl">Jan 1 Starting</div><div class="card-val" style="color:var(--t2)" id="as-start">¥—</div><div class="card-sub">Beginning of year balance</div></div>
+    <div class="card bl"><div class="card-lbl">Current Value</div><div class="card-val" id="as-cur">¥—</div><div class="card-sub">Start + cash flows so far</div></div>
+    <div class="card g"><div class="card-lbl">Year-End Forecast</div><div class="card-val" id="as-ye">¥—</div><div class="card-sub">Current + projected flows</div></div>
+    <div class="card am"><div class="card-lbl">YTD Growth</div><div class="card-val" id="as-delta">¥—</div><div class="card-sub">vs Jan 1 starting base</div></div>
+  </div>
+  <div class="g21">
+    <div class="box">
+      <div class="box-hd"><div class="box-title">Asset Breakdown</div><span class="badge bn" id="as-date-badge">as of today</span></div>
+      <div style="overflow-x:auto">
+        <table class="tbl">
+          <thead><tr><th class="l">Asset</th><th>Native</th><th>Jan 1 (¥)</th><th>+ Flows (¥)</th><th>Current (¥)</th><th>YE Forecast (¥)</th><th>%</th></tr></thead>
+          <tbody id="as-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div>
+      <div class="box" style="margin-bottom:12px">
+        <div class="box-hd"><div class="box-title">Allocation</div><span class="badge bn">By current value</span></div>
+        <div style="padding:14px"><div class="ch-wrap ch160"><canvas id="ch-alloc"></canvas></div><div id="alloc-lg" style="margin-top:10px"></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="box" style="margin-bottom:14px">
+    <div class="ch-head"><div class="ch-title">Net Worth Trajectory</div><div class="ch-sub">Start → Current → Forecast</div></div>
+    <div class="ch-body"><div class="ch-wrap ch200"><canvas id="ch-nw"></canvas></div></div>
+  </div>
+  <div class="g21">
+    <div class="box">
+      <div class="box-hd"><div class="box-title">Edit Starting Balances (Jan 1)</div><span class="badge bn">Beginning of Year</span></div>
+      <div style="padding:13px" id="as-inputs"></div>
+      <div style="padding:0 13px 13px"><button class="btn btn-p" style="width:100%" onclick="saveAssets()">💾 Save Starting Balances</button></div>
+    </div>
+    <div></div>
+  </div>
+</div>
+
+</div>
+</div>
+
+<script>
+// ═══════════════════════════════════
+// CONFIGURATION
+// ═══════════════════════════════════
+const API_URL = "https://script.google.com/macros/s/AKfycbxTSvV87COGLq89GxSJnAbapVOc2ftM_1e9EwO06mQLiaYE9FgsOjBuJPz9qgkjfq1RNQ/exec";
+
+// ═══════════════════════════════════
+// CORE ENGINE
+// ═══════════════════════════════════
+const FE={
+  gross:d=>(d.base||0)+(d.lunch||0)+(d.fixedOT||0)+(d.extraOT||0)+(d.commute||0)+(d.bonus||0)+(d.extraIncome||0)+(d.cashIn||0),
+  deduct:d=>(d.health||0)+(d.cafeteria||0)+(d.idecoDeduct||0),
+  net:d=>FE.gross(d)-FE.deduct(d),
+  exp:d=>(d.cardBank||0)+(d.cardRakutenVisa||0)+(d.cardRakutenCard||0)+(d.cardOlive||0)+(d.cardPaypay||0)+(d.cardAmazon||0)+(d.cardTransfer||0)+(d.cardCashOut||0)+(d.cardAdjust||0)+(d.cardBitcoin||0),
+  inv:d=>(d.nisa||0)+(d.crypto||0)+(d.ideco||0)+(d.education||0)+(d.business||0),
+  cf:d=>FE.net(d)-FE.exp(d),
+};
+const MO=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+const FLOWS={
+  cashSaving:d=>FE.cf(d),
+  rakutenNISA:d=>d.nisa||0,
+  cryptoCoincheck:d=>Math.round((d.crypto||0)*0.5),
+  cryptoBinance:d=>Math.round((d.crypto||0)*0.5),
+  ideco:d=>d.ideco||0,
+};
+
+const DEF_MO={
+  Jan:{base:303457,lunch:20000,fixedOT:46543,extraOT:0,commute:4140,bonus:0,extraIncome:0,cashIn:0,health:64564,cafeteria:0,idecoDeduct:0,cardBank:150000,cardRakutenVisa:82477,cardRakutenCard:50432,cardOlive:0,cardPaypay:1000,cardAmazon:7192,cardTransfer:30000,cardCashOut:0,cardAdjust:0,cardBitcoin:0,nisa:50000,crypto:30000,ideco:0,education:10000,business:0,smbc:610868,rakuten:0,notes:'',actual:true},
+  Feb:{base:303457,lunch:10000,fixedOT:46543,extraOT:20346,commute:8680,bonus:0,extraIncome:38717,cashIn:60000,health:67077,cafeteria:10000,idecoDeduct:0,cardBank:120000,cardRakutenVisa:53298,cardRakutenCard:104831,cardOlive:700,cardPaypay:7163,cardAmazon:37763,cardTransfer:330,cardCashOut:0,cardAdjust:0,cardBitcoin:10000,nisa:100000,crypto:10000,ideco:0,education:10000,business:0,smbc:687449,rakuten:0,notes:'',actual:true},
+  Mar:{base:303457,lunch:10000,fixedOT:46543,extraOT:52128,commute:8680,bonus:0,extraIncome:0,cashIn:63841,health:67995,cafeteria:10000,idecoDeduct:0,cardBank:106083,cardRakutenVisa:153698,cardRakutenCard:107672,cardOlive:4774,cardPaypay:4150,cardAmazon:3434,cardTransfer:300000,cardCashOut:150000,cardAdjust:0,cardBitcoin:10000,nisa:100000,crypto:10000,ideco:7000,education:10000,business:180000,smbc:254292,rakuten:0,notes:'',actual:true},
+  Apr:{base:303457,lunch:10000,fixedOT:46543,extraOT:52128,commute:8680,bonus:0,extraIncome:0,cashIn:63841,health:67995,cafeteria:10000,idecoDeduct:0,cardBank:113582,cardRakutenVisa:88674,cardRakutenCard:98210,cardOlive:0,cardPaypay:0,cardAmazon:22495,cardTransfer:0,cardCashOut:0,cardAdjust:0,cardBitcoin:10000,nisa:100000,crypto:10000,ideco:7000,education:10000,business:0,smbc:327985,rakuten:192328,notes:'',actual:true},
+  May:{base:303457,lunch:10000,fixedOT:46543,extraOT:52128,commute:8680,bonus:0,extraIncome:0,cashIn:0,health:67995,cafeteria:10000,idecoDeduct:7000,cardBank:120000,cardRakutenVisa:50000,cardRakutenCard:100000,cardOlive:0,cardPaypay:0,cardAmazon:0,cardTransfer:0,cardCashOut:0,cardAdjust:0,cardBitcoin:10000,nisa:100000,crypto:10000,ideco:7000,education:10000,business:0,smbc:554639,rakuten:94118,notes:'Projected',actual:false},
+  Jun:{base:303457,lunch:10000,fixedOT:46543,extraOT:52128,commute:8680,bonus:0,extraIncome:0,cashIn:0,health:67995,cafeteria:10000,idecoDeduct:7000,cardBank:120000,cardRakutenVisa:50000,cardRakutenCard:100000,cardOlive:0,cardPaypay:0,cardAmazon:0,cardTransfer:0,cardCashOut:0,cardAdjust:0,cardBitcoin:10000,nisa:100000,crypto:10000,ideco:7000,education:10000,business:0,smbc:781293,rakuten:94118,notes:'Projected',actual:false},
+  Jul:{base:303457,lunch:10000,fixedOT:46543,extraOT:52128,commute:8680,bonus:0,extraIncome:0,cashIn:0,health:67995,cafeteria:10000,idecoDeduct:7000,cardBank:120000,cardRakutenVisa:50000,cardRakutenCard:100000,cardOlive:0,cardPaypay:0,cardAmazon:0,cardTransfer:0,cardCashOut:0,cardAdjust:0,cardBitcoin:10000,nisa:100000,crypto:10000,ideco:7000,education:10000,business:0,smbc:1007947,rakuten:94118,notes:'Projected',actual:false},
+  Aug:{base:303457,lunch:10000,fixedOT:46543,extraOT:52128,commute:8680,bonus:0,extraIncome:0,cashIn:0,health:67995,cafeteria:10000,idecoDeduct:7000,cardBank:120000,cardRakutenVisa:50000,cardRakutenCard:100000,cardOlive:0,cardPaypay:0,cardAmazon:0,cardTransfer:0,cardCashOut:0,cardAdjust:0,cardBitcoin:10000,nisa:100000,crypto:10000,ideco:7000,education:10000,business:0,smbc:1234601,rakuten:94118,notes:'Projected',actual:false},
+  Sep:{base:303457,lunch:10000,fixedOT:46543,extraOT:52128,commute:8680,bonus:0,extraIncome:0,cashIn:0,health:67995,cafeteria:10000,idecoDeduct:7000,cardBank:120000,cardRakutenVisa:50000,cardRakutenCard:100000,cardOlive:0,cardPaypay:0,cardAmazon:0,cardTransfer:0,cardCashOut:0,cardAdjust:0,cardBitcoin:10000,nisa:100000,crypto:10000,ideco:7000,education:10000,business:0,smbc:1461255,rakuten:94118,notes:'Projected',actual:false},
+  Oct:{base:303457,lunch:10000,fixedOT:46543,extraOT:52128,commute:8680,bonus:0,extraIncome:0,cashIn:0,health:67995,cafeteria:10000,idecoDeduct:7000,cardBank:120000,cardRakutenVisa:50000,cardRakutenCard:100000,cardOlive:0,cardPaypay:0,cardAmazon:0,cardTransfer:0,cardCashOut:0,cardAdjust:0,cardBitcoin:10000,nisa:100000,crypto:10000,ideco:7000,education:10000,business:0,smbc:1687909,rakuten:94118,notes:'Projected',actual:false},
+  Nov:{base:303457,lunch:10000,fixedOT:46543,extraOT:52128,commute:8680,bonus:0,extraIncome:0,cashIn:0,health:67995,cafeteria:10000,idecoDeduct:7000,cardBank:120000,cardRakutenVisa:50000,cardRakutenCard:100000,cardOlive:0,cardPaypay:0,cardAmazon:0,cardTransfer:0,cardCashOut:0,cardAdjust:0,cardBitcoin:10000,nisa:100000,crypto:10000,ideco:7000,education:10000,business:0,smbc:1914563,rakuten:94118,notes:'Projected',actual:false},
+  Dec:{base:303457,lunch:10000,fixedOT:46543,extraOT:52128,commute:8680,bonus:0,extraIncome:0,cashIn:0,health:67995,cafeteria:10000,idecoDeduct:7000,cardBank:120000,cardRakutenVisa:50000,cardRakutenCard:100000,cardOlive:0,cardPaypay:0,cardAmazon:0,cardTransfer:0,cardCashOut:0,cardAdjust:0,cardBitcoin:10000,nisa:100000,crypto:10000,ideco:7000,education:10000,business:0,smbc:2141217,rakuten:94118,notes:'Projected',actual:false},
+};
+
+const DEF_ASSETS={
+  cashSaving:{label:'Cash Savings (SMBC)',val:2141217,cur:'JPY',color:'#4caf82',group:'Cash'},
+  rakutenNISA:{label:'Rakuten NISA',val:2058000,cur:'JPY',color:'#4c8ef0',group:'Securities'},
+  vnYen:{label:'VN Yen Savings',val:1000000,cur:'JPY',color:'#8bc4e0',group:'Cash'},
+  vnLand:{label:'VN Land',val:148960000,cur:'VND',color:'#e88c58',group:'Real Estate'},
+  vnGold:{label:'VN Gold',val:500000,cur:'JPY',color:'#e8c850',group:'Commodities'},
+  vnUSD:{label:'VN USD Cash',val:2400,cur:'USD',color:'#c9a840',group:'Cash'},
+  cryptoCoincheck:{label:'Crypto Coincheck',val:370000,cur:'JPY',color:'#f0b830',group:'Crypto'},
+  cryptoBinance:{label:'Crypto Binance',val:281000,cur:'JPY',color:'#f0c860',group:'Crypto'},
+  vnStock:{label:'VN Saigon Stock',val:45000000,cur:'VND',color:'#b87af0',group:'Securities'},
+  ideco:{label:'iDeCo',val:70000,cur:'JPY',color:'#64b8d8',group:'Securities'},
+};
+
+// ═══════════════════════════════════
+// STATE
+// ═══════════════════════════════════
+let DB={};
+let curYear='2026';
+let selMonth='May';
+let fx={usdJpy:150,jpyVnd:170,usdVnd:25500};
+let CH={},allocChart=null;
+
+const N=n=>n===0?'':Math.round(n).toLocaleString();
+const P=s=>parseFloat(String(s).replace(/,/g,''))||0;
+const Y=v=>'¥'+Math.abs(Math.round(v)).toLocaleString();
+const YS=v=>{let a=Math.abs(v),s=v<0?'-':'';return s+'¥'+(a>=1e6?(a/1e6).toFixed(1)+'M':(a>=1000?(a/1e3).toFixed(0)+'K':Math.round(a).toString()));};
+const toJ=(v,c)=>c==='JPY'?v:c==='USD'?v*fx.usdJpy:c==='VND'?v/fx.jpyVnd:v;
+
+function yrData(yr){
+  if(!DB[yr]){
+    DB[yr]={mo:JSON.parse(JSON.stringify(DEF_MO)),assets:JSON.parse(JSON.stringify(DEF_ASSETS))};
+  }
+  return DB[yr];
+}
+function mo(){return yrData(curYear).mo;}
+function as(){return yrData(curYear).assets;}
+
+async function persist(){
+  try{
+    await fetch(API_URL,{
+      method:'POST',
+      body: JSON.stringify(DB),
+      headers: {'Content-Type':'application/json'}
+    });
+    const indicator = document.getElementById('sync-indicator');
+    if (indicator) {
+      indicator.classList.add('show');
+      setTimeout(() => indicator.classList.remove('show'), 2000);
+    }
+  }catch(e){
+    console.error('Save failed', e);
+  }
+}
+
+async function hydrate(){
+  try{
+    let res = await fetch(API_URL);
+    let data = await res.json();
+    if(data && Object.keys(data).length > 0){
+      DB = data;
+    } else {
+      // Initialize with default data if cloud is empty
+      DB = {};
+    }
+  }catch(e){
+    console.error('Load failed', e);
+    DB = {};
+  }
+}
+
+function aJPY(k,a,allMonths){
+  let cum=(allMonths||MO).reduce((s,m)=>{let d=mo()[m];return s+(FLOWS[k]?FLOWS[k](d):0);},0);
+  return toJ(a.val,a.cur)+cum;
+}
+function startNW(){return Object.entries(as()).reduce((s,[k,a])=>s+toJ(a.val,a.cur),0);}
+function currentNW(){return Object.entries(as()).reduce((s,[k,a])=>s+aJPY(k,a,MO),0);}
+function currentNWActual(){
+  let laIdx=-1;for(let i=MO.length-1;i>=0;i--)if(mo()[MO[i]].actual){laIdx=i;break;}
+  let actMo=MO.slice(0,laIdx+1);
+  return Object.entries(as()).reduce((s,[k,a])=>s+aJPY(k,a,actMo),0);
+}
+function yeNW(){return currentNW();}
+function nwTraj(){
+  let base=startNW(),run=base,r=[];
+  for(let m of MO){run+=FE.cf(mo()[m]);r.push(run);}
+  return r;
+}
+function lastActualIdx(){let i=MO.length-1;for(;i>=0;i--)if(mo()[MO[i]].actual)return i;return -1;}
+
+const TT={backgroundColor:'rgba(12,12,14,0.97)',borderColor:'rgba(255,255,255,0.1)',borderWidth:1,titleColor:'rgba(240,240,242,0.5)',bodyColor:'#f0f0f2'};
+const xax={ticks:{color:'rgba(240,240,242,0.28)',font:{size:10}},grid:{display:false},border:{display:false}};
+const yax={ticks:{color:'rgba(240,240,242,0.28)',font:{size:10}},grid:{color:'rgba(255,255,255,0.04)'},border:{display:false}};
+function mkC(id,cfg){if(CH[id])CH[id].destroy();CH[id]=new Chart(document.getElementById(id).getContext('2d'),cfg);return CH[id];}
+
+function renderYears(){
+  let yrs=Object.keys(DB).sort().reverse();
+  if(!yrs.includes('2026'))yrs=['2026',...yrs];
+  document.getElementById('sb-years').innerHTML=yrs.map(y=>`
+    <div style="display:flex;align-items:center;gap:2px;padding:1px 0">
+      <button class="yr-btn ${y===curYear?'active':''}" style="flex:1" onclick="switchYear('${y}')">
+        <span class="yr-ico">${y===curYear?'●':'○'}</span> ${y}
+      </button>
+      ${y!==curYear?`<button onclick="deleteYear('${y}')" title="Delete ${y}" style="padding:4px 7px;border-radius:5px;background:none;border:none;color:var(--t3);cursor:pointer;font-size:12px;line-height:1;font-family:var(--sans);transition:color .12s" onmouseover="this.style.color='var(--r)'" onmouseout="this.style.color='var(--t3)'">✕</button>`:'<span style="width:26px;flex-shrink:0"></span>'}
+    </div>`).join('');
+}
+
+function switchYear(y){
+  curYear=y;
+  renderYears();
+  let ap=document.querySelector('.page.active');
+  if(ap){
+    let id=ap.id.replace('page-','');
+    if(id==='overview')renderOverview();
+    else if(id==='monthly')renderMonthly();
+    else if(id==='assets')renderAssets();
+  }
+}
+
+function addYear(){
+  let existing=new Set(Object.keys(DB));
+  existing.add('2026');
+  let cur=parseInt(curYear)||2026;
+  let suggestions=[];
+  for(let y=cur+3;y>=cur-5;y--){
+    if(!existing.has(String(y)))suggestions.push(String(y));
+  }
+  let overlay=document.createElement('div');
+  overlay.id='yr-modal';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)';
+  overlay.innerHTML=`
+    <div style="background:#18181b;border:1px solid rgba(255,255,255,0.15);border-radius:12px;padding:24px 28px;min-width:260px;box-shadow:0 20px 60px rgba(0,0,0,0.6)">
+      <div style="font-size:14px;font-weight:700;margin-bottom:4px">Add a Year</div>
+      <div style="font-size:11px;color:rgba(240,240,242,0.45);margin-bottom:16px">Creates a blank year you can fill in. Assets start from scratch — update them in the Assets page.</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px">
+        ${suggestions.slice(0,8).map(y=>`<button onclick="confirmAddYear('${y}')" style="padding:6px 14px;border-radius:7px;background:rgba(10,132,255,0.12);border:1px solid rgba(10,132,255,0.3);color:#0a84ff;font-family:var(--sans);font-size:12px;font-weight:600;cursor:pointer">${y}</button>`).join('')}
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input id="yr-custom" type="number" placeholder="Custom year…" min="2000" max="2099" style="flex:1;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:7px;color:#f0f0f2;font-family:var(--mono);font-size:13px;padding:7px 10px;outline:none;width:100%">
+        <button onclick="confirmAddYearCustom()" style="padding:7px 14px;border-radius:7px;background:rgba(255,255,255,0.9);color:#0a0a0a;border:none;font-family:var(--sans);font-size:12px;font-weight:700;cursor:pointer">Add</button>
+      </div>
+      <button onclick="closeYrModal()" style="margin-top:14px;width:100%;padding:7px;border-radius:7px;background:none;border:1px solid rgba(255,255,255,0.1);color:rgba(240,240,242,0.5);font-family:var(--sans);font-size:12px;cursor:pointer">Cancel</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click',e=>{if(e.target===overlay)closeYrModal();});
+}
+
+function closeYrModal(){let m=document.getElementById('yr-modal');if(m)m.remove();}
+
+function confirmAddYear(y){
+  closeYrModal();
+  if(DB[y]){switchYear(y);return;}
+  let blankMo={};
+  MO.forEach(m=>{blankMo[m]={...DEF_MO[m],base:0,lunch:0,fixedOT:0,extraOT:0,commute:0,bonus:0,extraIncome:0,cashIn:0,health:0,cafeteria:0,idecoDeduct:0,cardBank:0,cardRakutenVisa:0,cardRakutenCard:0,cardOlive:0,cardPaypay:0,cardAmazon:0,cardTransfer:0,cardCashOut:0,cardAdjust:0,cardBitcoin:0,nisa:0,crypto:0,ideco:0,education:0,business:0,smbc:0,rakuten:0,notes:'',actual:false};});
+  let blankAssets={};
+  Object.entries(DEF_ASSETS).forEach(([k,a])=>{blankAssets[k]={...a,val:0};});
+  DB[y]={mo:blankMo,assets:blankAssets};
+  persist();
+  switchYear(y);
+  renderYears();
+  let toast=document.createElement('div');
+  toast.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#18181b;border:1px solid rgba(52,199,89,0.4);color:#34c759;font-size:12px;font-weight:600;padding:10px 18px;border-radius:8px;z-index:999;box-shadow:0 4px 20px rgba(0,0,0,0.4)';
+  toast.textContent=`✓ ${y} added — go to Assets to set your starting balances`;
+  document.body.appendChild(toast);
+  setTimeout(()=>toast.remove(),4000);
+}
+
+function confirmAddYearCustom(){
+  let val=document.getElementById('yr-custom')?.value;
+  let y=parseInt(val);
+  if(!y||y<2000||y>2099){alert('Please enter a valid year between 2000 and 2099');return;}
+  confirmAddYear(String(y));
+}
+
+function deleteYear(y){
+  if(y==='2026'){alert('Cannot delete the base year 2026.');return;}
+  if(!confirm('Delete '+y+' and all its data? This cannot be undone.'))return;
+  delete DB[y];
+  persist();
+  if(curYear===y)curYear='2026';
+  renderYears();
+  switchYear(curYear);
+}
+
+function renderOverview(){
+  yrData(curYear); // Ensure year exists
+  let la=lastActualIdx();
+  let ytd=MO.slice(0,la+1);
+  let sum=(arr,fn)=>arr.reduce((s,m)=>s+fn(mo()[m]),0);
+  let fyG=sum(MO,FE.gross),fyE=sum(MO,d=>FE.exp(d)+FE.deduct(d)),fyCF=sum(MO,FE.cf);
+  let ytdG=sum(ytd,FE.gross),ytdCF=sum(ytd,FE.cf);
+  let nw=currentNWActual();
+  let sr=ytdG>0?((ytdCF/ytdG)*100).toFixed(1):0;
+
+  document.getElementById('ov-yr').textContent=curYear;
+  document.getElementById('ov-nw').textContent='¥'+Math.round(nw).toLocaleString();
+  document.getElementById('ov-nw-sub').textContent='≈ $'+Math.round(nw/fx.usdJpy).toLocaleString();
+  document.getElementById('ov-inc').textContent=YS(fyG);
+  document.getElementById('ov-exp').textContent=YS(fyE);
+  document.getElementById('ov-cf').textContent=YS(fyCF);
+  document.getElementById('ov-cf').style.color=fyCF>=0?'var(--g)':'var(--r)';
+  document.getElementById('ov-sr').textContent=sr+'%';
+
+  let actMo=ytd.length>0?ytd:MO;
+  let nMo=actMo.length||1;
+  let iRows=[
+    {l:'Base Salary',fn:d=>d.base||0},
+    {l:'Overtime (Fixed + Extra)',fn:d=>(d.fixedOT||0)+(d.extraOT||0)},
+    {l:'Allowances (Lunch + Commute)',fn:d=>(d.lunch||0)+(d.commute||0)},
+    {l:'Bonus & Extra Income',fn:d=>(d.bonus||0)+(d.extraIncome||0)+(d.cashIn||0)},
+    {l:'Less: Deductions',fn:FE.deduct,neg:true},
+  ];
+  document.getElementById('inc-tbl').innerHTML=iRows.map(r=>{
+    let tot=sum(actMo,r.fn),avg=Math.round(tot/nMo);
+    return `<tr class="${r.neg?'neg':''}"><td class="l ind">${r.l}</td><td>${YS(avg)}</td><td>${YS(tot)}</td></tr>`;
+  }).join('')+`<tr class="sub pos"><td class="l">Net Income (YTD)</td><td>${YS(Math.round(sum(actMo,FE.net)/nMo))}</td><td>${YS(sum(actMo,FE.net))}</td></tr>`;
+
+  let eRows=[
+    {l:'Bank / Living Expenses',fn:d=>d.cardBank||0},
+    {l:'Rakuten Cards',fn:d=>(d.cardRakutenVisa||0)+(d.cardRakutenCard||0)},
+    {l:'Olive / PayPay / Amazon',fn:d=>(d.cardOlive||0)+(d.cardPaypay||0)+(d.cardAmazon||0)},
+    {l:'Transfers & Cash Out',fn:d=>(d.cardTransfer||0)+(d.cardCashOut||0)+(d.cardBitcoin||0)},
+    {l:'Adjustment',fn:d=>d.cardAdjust||0},
+    {l:'Investments (NISA, Crypto…)',fn:FE.inv},
+  ];
+  document.getElementById('exp-tbl').innerHTML=eRows.map(r=>{
+    let tot=sum(actMo,r.fn),avg=Math.round(tot/nMo);
+    return `<tr><td class="l ind">${r.l}</td><td>${YS(avg)}</td><td>${YS(tot)}</td></tr>`;
+  }).join('')+`<tr class="sub neg"><td class="l">Total Out (YTD)</td><td>${YS(Math.round(sum(actMo,d=>FE.exp(d)+FE.deduct(d)+FE.inv(d))/nMo))}</td><td>${YS(sum(actMo,d=>FE.exp(d)+FE.deduct(d)+FE.inv(d)))}</td></tr>`;
+
+  let grossArr=MO.map(m=>FE.gross(mo()[m]));
+  let expArr=MO.map(m=>FE.exp(mo()[m])+FE.deduct(mo()[m]));
+  let cfArr=MO.map(m=>FE.cf(mo()[m]));
+  mkC('ch-overview',{type:'bar',data:{labels:MO,datasets:[
+    {label:'Income',data:grossArr,backgroundColor:MO.map(m=>mo()[m].actual?'rgba(52,199,89,0.45)':'rgba(52,199,89,0.13)'),borderRadius:3,order:2},
+    {label:'Expenses',data:expArr,backgroundColor:MO.map(m=>mo()[m].actual?'rgba(255,69,58,0.4)':'rgba(255,69,58,0.12)'),borderRadius:3,order:3},
+    {label:'Cash Flow',data:cfArr,type:'line',borderColor:'rgba(10,132,255,0.8)',backgroundColor:'transparent',tension:0.35,pointBackgroundColor:MO.map(m=>mo()[m].actual?'rgba(10,132,255,0.9)':'rgba(10,132,255,0.35)'),pointRadius:3,borderWidth:2,order:1}
+  ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:true,labels:{color:'rgba(240,240,242,0.35)',font:{size:10},boxWidth:10,boxHeight:10}},tooltip:{...TT,callbacks:{label:ctx=>` ${ctx.dataset.label}: ${YS(ctx.raw)}`}}},scales:{x:xax,y:{...yax,ticks:{...yax.ticks,callback:v=>YS(v)}}}}});
+
+  renderYoY();
+}
+
+function renderYoY(){
+  let allYrs=Object.keys(DB).sort().reverse();
+  if(!allYrs.includes('2026'))allYrs=['2026',...allYrs];
+  let maxNW=Math.max(...allYrs.map(y=>{
+    let d=DB[y];if(!d)return 0;
+    return Object.entries(d.assets||{}).reduce((s,[k,a])=>s+toJ(a.val,a.cur),0)+MO.reduce((s,m)=>s+FE.cf((d.mo||{})[m]||{}),0);
+  }),1);
+  document.getElementById('yr-history').innerHTML=allYrs.map((y,i)=>{
+    let d=DB[y];
+    let startBase=d?Object.entries(d.assets||{}).reduce((s,[k,a])=>s+toJ(a.val,a.cur),0):0;
+    let annualCF=d?MO.reduce((s,m)=>s+FE.cf((d.mo||{})[m]||{}),0):0;
+    let nw=startBase+annualCF;
+    let prev=i<allYrs.length-1?DB[allYrs[i+1]]:null;
+    let prevNW=prev?Object.entries(prev.assets||{}).reduce((s,[k,a])=>s+toJ(a.val,a.cur),0)+MO.reduce((s,m)=>s+FE.cf((prev.mo||{})[m]||{}),0):null;
+    let delta=prevNW!==null?nw-prevNW:null;
+    let barW=nw>0?Math.round(nw/maxNW*100):0;
+    let isCur=y===curYear;
+    return `<div class="yr-row ${isCur?'active-yr':''}" onclick="switchYear('${y}')">
+      <span class="yr-tag">${y}</span>
+      <div class="yr-bar-w"><div class="yr-bar" style="width:${barW}%"></div></div>
+      <span class="yr-nw">${nw?YS(nw):'—'}</span>
+      <span class="yr-delta" style="color:${delta===null?'var(--t3)':delta>=0?'var(--g)':'var(--r)'}">${delta===null?'—':(delta>=0?'+':'')+YS(delta)}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderMonthly(){
+  yrData(curYear); // Ensure year exists
+  document.getElementById('mo-yr-title').textContent=curYear;
+  document.getElementById('mtabs').innerHTML=MO.map(m=>`<button class="mtab ${mo()[m].actual?'ok':''} ${m===selMonth?'active':''}" onclick="selMo('${m}')">${m}${mo()[m].actual?' ✓':' ~'}</button>`).join('');
+  let d=mo()[selMonth];
+  let isAct=d.actual;
+  document.getElementById('mo-badge').innerHTML=isAct?'<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:var(--gbg);color:var(--g);border:1px solid var(--gb)">✓ Confirmed</span>':'<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:var(--s2);color:var(--t3);border:1px solid var(--br);font-style:italic">~ Forecast</span>';
+  const FS=['base','lunch','fixedOT','extraOT','commute','bonus','extraIncome','cashIn','health','cafeteria','idecoDeduct','cardBank','cardRakutenVisa','cardRakutenCard','cardOlive','cardPaypay','cardAmazon','cardTransfer','cardCashOut','cardAdjust','cardBitcoin','nisa','crypto','ideco','education','business','smbc','rakuten'];
+  FS.forEach(f=>{let el=document.getElementById('f-'+f);if(el)el.value=d[f]?N(d[f]):'';});
+  document.getElementById('f-notes').value=d.notes||'';
+  calcMo();
+  document.querySelectorAll('#page-monthly .fi').forEach(el=>{el.oninput=calcMo;el.onblur=function(){let r=P(this.value);this.value=r===0?'':N(r);calcMo();};});
+}
+
+function selMo(m){selMonth=m;renderMonthly();}
+
+function getF(){
+  const r=id=>P(document.getElementById(id)?.value||'0');
+  return{base:r('f-base'),lunch:r('f-lunch'),fixedOT:r('f-fixedOT'),extraOT:r('f-extraOT'),commute:r('f-commute'),bonus:r('f-bonus'),extraIncome:r('f-extraIncome'),cashIn:r('f-cashIn'),health:r('f-health'),cafeteria:r('f-cafeteria'),idecoDeduct:r('f-idecoDeduct'),cardBank:r('f-cardBank'),cardRakutenVisa:r('f-cardRakutenVisa'),cardRakutenCard:r('f-cardRakutenCard'),cardOlive:r('f-cardOlive'),cardPaypay:r('f-cardPaypay'),cardAmazon:r('f-cardAmazon'),cardTransfer:r('f-cardTransfer'),cardCashOut:r('f-cardCashOut'),cardAdjust:r('f-cardAdjust'),cardBitcoin:r('f-cardBitcoin'),nisa:r('f-nisa'),crypto:r('f-crypto'),ideco:r('f-ideco'),education:r('f-education'),business:r('f-business'),smbc:r('f-smbc'),rakuten:r('f-rakuten'),notes:document.getElementById('f-notes')?.value||'',actual:true};
+}
+
+function calcMo(){
+  let d=getF(),g=FE.gross(d),n=FE.net(d),e=FE.exp(d),inv=FE.inv(d),cf=FE.cf(d);
+  document.getElementById('c-gross').textContent=Y(g);
+  document.getElementById('c-net').textContent=Y(n);
+  document.getElementById('c-exp').textContent=Y(e);
+  document.getElementById('c-inv').textContent=Y(inv);
+  let cfEl=document.getElementById('c-cf');cfEl.textContent=Y(cf);cfEl.style.color=cf>=0?'var(--g)':'var(--r)';
+  let rows=[
+    {l:'Gross Income',v:g,c:'var(--g)'},{l:'− Deductions',v:-FE.deduct(d),c:'var(--r)'},
+    {l:'Net Income',v:n,c:'var(--tx)'},{l:'− Expenses',v:-e,c:'var(--r)'},
+    {l:'= Cash Flow',v:cf,c:cf>=0?'var(--g)':'var(--r)'},{l:'Invested',v:inv,c:'var(--bl)'},
+    {l:'Free Cash',v:cf-inv,c:(cf-inv)>=0?'var(--g)':'var(--r)'},
+  ];
+  document.getElementById('mo-pl').innerHTML=rows.map(r=>`<div class="pl-row"><span class="pl-lbl">${r.l}</span><span class="pl-val" style="color:${r.c}">${r.v>=0?Y(r.v):'('+Y(Math.abs(r.v))+')'}</span></div>`).join('');
+}
+
+function saveMonth(){
+  yrData(curYear).mo[selMonth]=getF();
+  persist();
+  let t=document.getElementById('save-toast');t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2500);
+  renderMonthly();
+  renderYears();
+}
+
+function clearForm(){document.querySelectorAll('#page-monthly .fi').forEach(el=>el.value='');calcMo();}
+
+function resetMonth(){if(!confirm(`Reset ${selMonth} ${curYear}?`))return;yrData(curYear).mo[selMonth]={...DEF_MO[selMonth]};persist();renderMonthly();}
+
+function renderAssets(){
+  yrData(curYear); // Ensure year exists
+  document.getElementById('as-yr-title').textContent=curYear;
+  document.getElementById('as-date-badge').textContent=`as of ${curYear}`;
+  let startBase=startNW();
+  let la=lastActualIdx();
+  let actMo=MO.slice(0,la+1);
+  let curNW=Object.entries(as()).reduce((s,[k,a])=>s+aJPY(k,a,actMo),0);
+  let yeNWval=Object.entries(as()).reduce((s,[k,a])=>s+aJPY(k,a,MO),0);
+  let delta=curNW-startBase;
+
+  document.getElementById('as-nw').textContent='¥'+Math.round(curNW).toLocaleString();
+  document.getElementById('as-nw-sub').textContent='≈ $'+Math.round(curNW/fx.usdJpy).toLocaleString();
+  document.getElementById('as-start').textContent=YS(startBase);
+  document.getElementById('as-cur').textContent=YS(curNW);
+  document.getElementById('as-ye').textContent=YS(yeNWval);
+  document.getElementById('as-delta').textContent=(delta>=0?'+':'')+YS(delta);
+  document.getElementById('as-delta').style.color=delta>=0?'var(--g)':'var(--r)';
+
+  let groups={};
+  Object.entries(as()).forEach(([k,a])=>{
+    let g=a.group||'Other';if(!groups[g])groups[g]=[];
+    let sJ=toJ(a.val,a.cur);
+    let flowAct=actMo.reduce((s,m)=>s+(FLOWS[k]?FLOWS[k](mo()[m]):0),0);
+    let flowAll=MO.reduce((s,m)=>s+(FLOWS[k]?FLOWS[k](mo()[m]):0),0);
+    let curJ=sJ+flowAct,yeJ=sJ+flowAll;
+    groups[g].push({k,a,sJ,flowAct,curJ,yeJ});
+  });
+  let gord=['Cash','Securities','Crypto','Real Estate','Commodities'];
+  let html='';
+  gord.forEach(g=>{
+    if(!groups[g])return;
+    let gCur=groups[g].reduce((s,r)=>s+r.curJ,0);
+    html+=`<tr class="grp"><td class="l" colspan="7">${g} — ${YS(gCur)}</td></tr>`;
+    groups[g].sort((a,b)=>b.curJ-a.curJ).forEach(({k,a,sJ,flowAct,curJ,yeJ})=>{
+      let pct=(curJ/curNW*100).toFixed(1);
+      let fStr=flowAct!==0?`<span style="color:${flowAct>=0?'var(--g)':'var(--r)'}">${flowAct>=0?'+':''}${YS(flowAct)}</span>`:'—';
+      html+=`<tr>
+        <td class="l ind"><span style="display:inline-block;width:7px;height:7px;border-radius:2px;background:${a.color};margin-right:6px;vertical-align:middle"></span>${a.label}</td>
+        <td style="font-size:11px;color:var(--t3)">${N(a.val)} ${a.cur}</td>
+        <td>${YS(sJ)}</td><td>${fStr}</td>
+        <td style="font-weight:700;color:var(--tx)">${YS(curJ)}</td>
+        <td style="color:var(--bl)">${YS(yeJ)}</td>
+        <td style="color:var(--t3)">${pct}%</td>
+      </tr>`;
+    });
+    html+=`<tr class="sub"><td class="l">Subtotal — ${g}</td><td></td><td></td><td></td><td>${YS(gCur)}</td><td>${YS(groups[g].reduce((s,r)=>s+r.yeJ,0))}</td><td>${(gCur/curNW*100).toFixed(1)}%</td></tr>`;
+  });
+  html+=`<tr class="tot"><td class="l">Total Net Worth</td><td></td><td style="color:var(--t2)">${YS(startBase)}</td><td></td><td style="color:var(--g)">${YS(curNW)}</td><td style="color:var(--bl)">${YS(yeNWval)}</td><td>100%</td></tr>`;
+  document.getElementById('as-tbody').innerHTML=html;
+
+  let sorted=Object.entries(as()).sort(([ka,a],[kb,b])=>aJPY(kb,b,actMo)-aJPY(ka,a,actMo));
+  let pdata=sorted.map(([k,a])=>aJPY(k,a,actMo));
+  if(allocChart)allocChart.destroy();
+  allocChart=new Chart(document.getElementById('ch-alloc').getContext('2d'),{type:'doughnut',data:{labels:sorted.map(([,a])=>a.label),datasets:[{data:pdata,backgroundColor:sorted.map(([,a])=>a.color),borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'58%',plugins:{legend:{display:false},tooltip:{...TT,callbacks:{label:ctx=>` ¥${(ctx.raw/1e6).toFixed(2)}M (${(ctx.raw/curNW*100).toFixed(1)}%)`}}}}});
+  document.getElementById('alloc-lg').innerHTML=sorted.map(([k,a])=>{let v=aJPY(k,a,actMo);return `<div class="lg-row"><div class="lg-dot" style="background:${a.color}"></div><span class="lg-name">${a.label}</span><span class="lg-val">${YS(v)}</span><span class="lg-pct">${(v/curNW*100).toFixed(1)}%</span></div>`;}).join('');
+
+  let traj=nwTraj(),base=startNW();
+  let actP=traj.map((v,i)=>mo()[MO[i]].actual?v:null);
+  let fcP=traj.map((v,i)=>{if(mo()[MO[i]].actual)return null;return v;});
+  if(la>=0&&la<11)fcP[la]=traj[la];
+  mkC('ch-nw',{type:'line',data:{labels:MO,datasets:[
+    {label:'Actual',data:actP,borderColor:'rgba(240,240,242,0.8)',backgroundColor:'rgba(240,240,242,0.04)',fill:true,tension:0.35,pointBackgroundColor:'rgba(240,240,242,0.9)',pointRadius:4,pointHoverRadius:6,spanGaps:false},
+    {label:'Forecast',data:fcP,borderColor:'rgba(10,132,255,0.65)',backgroundColor:'rgba(10,132,255,0.04)',fill:true,tension:0.35,borderDash:[5,4],pointBackgroundColor:'rgba(10,132,255,0.8)',pointRadius:3,spanGaps:false},
+    {label:'Start',data:MO.map(()=>base),borderColor:'rgba(255,255,255,0.08)',fill:false,borderDash:[2,4],pointRadius:0}
+  ]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{...TT,callbacks:{beforeBody:()=>[`  Start: ${YS(base)}`],label:ctx=>{if(ctx.datasetIndex===2||ctx.raw===null)return null;let d=ctx.raw-base;return ` ${ctx.dataset.label}: ${YS(ctx.raw)}  (${d>=0?'+':''}${YS(d)} vs start)`;},filter:i=>i.raw!==null&&i.datasetIndex!==2}}},scales:{x:xax,y:{...yax,ticks:{...yax.ticks,callback:v=>YS(v)}}}}});
+
+ document.getElementById('as-inputs').innerHTML =
+  `<div style="font-size:10px;color:var(--t3);margin-bottom:9px;padding:7px 9px;background:rgba(255,255,255,0.03);border-radius:5px;border:1px solid var(--br);line-height:1.5"><strong style="color:var(--t2)">Jan 1 ${curYear} Starting Balances</strong><br>These are your beginning-of-year values. Monthly cash flows are added automatically.</div>`+
+  Object.entries(as()).map(([k,a])=>{
+    let flowAll = MO.reduce((s,m)=>s+(FLOWS[k]?FLOWS[k](mo()[m]):0),0);
+    let tag = flowAll!==0 ? `<span class="ae-tag">${flowAll>=0?'+':''}${YS(flowAll)} flows</span>` : '';
+    // Important: Use the current value from the assets object
+    let currentVal = a.val;
+    return `<div class="ae-row">
+      <div class="ae-lbl"><span>${a.label} (${a.cur})</span>${tag}</div>
+      <input class="fi asset-inp" data-key="${k}" type="text" value="${N(currentVal)}" style="width:100%">
+    </div>`;
+  }).join('');
+  
+// Re-attach event listeners for asset inputs
+document.querySelectorAll('.asset-inp').forEach(el => {
+  el.onblur = function(){
+    let r = P(this.value);
+    this.value = r === 0 ? '' : N(r);
+  };
+  el.onfocus = function(){
+    let r = P(this.value);
+    this.value = r === 0 ? '' : String(r);
+  };
+});
+}
+
+function saveAssets(){
+  document.querySelectorAll('.asset-inp').forEach(el=>{let k=el.dataset.key;if(as()[k])as()[k].val=P(el.value);});
+  persist();
+  renderAssets();
+  let t=document.getElementById('save-toast');if(t){t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2500);}
+}
+
+function dispFX(){
+  document.getElementById('fx-usdjpy').textContent=fx.usdJpy.toFixed(2);
+  document.getElementById('fx-vndjpy').textContent=(1000/fx.jpyVnd).toFixed(2);
+}
+
+async function fetchFX(){
+  try{
+    let r=await fetch('https://open.er-api.com/v6/latest/USD'),d=await r.json();
+    if(d.rates){fx.usdJpy=d.rates.JPY;fx.usdVnd=d.rates.VND;fx.jpyVnd=d.rates.VND/d.rates.JPY;}
+    dispFX();
+    document.getElementById('fx-ts').textContent='Live · '+new Date().toLocaleTimeString();
+    let ap=document.querySelector('.page.active');
+    if(ap){let id=ap.id.replace('page-','');if(id==='overview')renderOverview();else if(id==='assets')renderAssets();}
+  }catch(e){document.getElementById('fx-ts').textContent='Offline';}
+}
+
+function nav(id,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn,.ti').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(el)el.classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(n=>{if((n.getAttribute('onclick')||'').includes("'"+id+"'"))n.classList.add('active');});
+  document.querySelectorAll('.ti').forEach(n=>{if((n.getAttribute('onclick')||'').includes("'"+id+"'"))n.classList.add('active');});
+  if(id==='overview')renderOverview();
+  else if(id==='monthly')renderMonthly();
+  else if(id==='assets')renderAssets();
+}
+
+async function init(){
+  await hydrate();
+  // Always ensure 2026 exists with default data
+  if(!DB['2026']){
+    DB['2026'] = {mo: JSON.parse(JSON.stringify(DEF_MO)), assets: JSON.parse(JSON.stringify(DEF_ASSETS))};
+    await persist(); // Save initial data to cloud
+  }
+  renderYears();
+  dispFX();
+  fetchFX();
+  setInterval(fetchFX,60000);
+  renderOverview();
+}
+
+init();
+</script>
+
+</body>
+</html>
